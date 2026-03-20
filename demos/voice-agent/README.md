@@ -1,93 +1,70 @@
-# Westbrook & Associates — AI Voice Agent
+# Law Firm Demo — "Alex"
 
-An AI-powered phone receptionist that qualifies law firm leads via voice calls. Built with Vapi.ai, Claude Sonnet, ElevenLabs, and Deepgram.
+The full runnable voice agent demo. Alex is a bilingual (EN/ES) AI receptionist that qualifies law firm leads via phone calls.
 
-**Alex**, the AI receptionist, answers inbound calls 24/7, asks qualifying questions, scores leads on a 0–10 scale, and routes them accordingly — booking consultations for hot leads, sending nurture emails for warm leads, and redirecting cold leads to appropriate resources.
-
-## How It Works
+## Call Flow
 
 ```
-Caller dials phone number
-        ↓
-   Vapi.ai handles the call
-   (ElevenLabs voice + Deepgram transcription + Claude Sonnet brain)
-        ↓
-   Alex asks 5 qualifying questions
-        ↓
-   Scores the lead (0–10)
-        ↓
-   ┌─────────────┬──────────────┬──────────────┐
-   │ Score 7–10  │  Score 4–6   │  Score 1–3   │
-   │  QUALIFIED  │   NURTURE    │   REDIRECT   │
-   │             │              │              │
-   │ Books a     │ Captures     │ Refers to    │
-   │ consultation│ email, sends │ Legal Aid,   │
-   │ appointment │ resources    │ State Bar,   │
-   │             │              │ Small Claims │
-   └─────────────┴──────────────┴──────────────┘
-        ↓
-   Lead logged to SQLite → visible on web dashboard
+Caller dials in
+      |
+      v
+Alex answers instantly (EN or ES)
+      |
+      v
+Asks 5 qualifying questions
+      |
+      v
+Scores the lead (0-10)
+      |
+      v
+  +--------+--------+--------+
+  | 7-10   | 4-6    | 1-3    |
+  | QUAL.  | NURT.  | REDIR. |
+  +--------+--------+--------+
+  | Books  | Sends  | Refers |
+  | consult| email  | to aid |
+  +--------+--------+--------+
+      |
+      v
+Lead logged -> dashboard
 ```
 
-## The 5 Qualifying Questions
+## Scoring Rubric
 
 | # | Question | Max Points |
 |---|----------|-----------|
 | 1 | Type of legal matter | 2 pts |
 | 2 | Timeline / urgency | 2 pts |
-| 3 | Competition check (other attorneys consulted) | 2 pts |
-| 4 | Intent signal (readiness to proceed) | 2 pts |
+| 3 | Other attorneys consulted | 2 pts |
+| 4 | Readiness to proceed | 2 pts |
 | 5 | Jurisdiction / zip code | 2 pts |
-
-**Total: 10 points**
+| | **Total** | **10 pts** |
 
 ## Project Structure
 
 ```
 demos/voice-agent/
-├── server.py              # Flask webhook server + dashboard
-├── vapi_setup.py          # Creates Vapi tools, assistant, phone number
+├── server.py              # Flask: webhooks + dashboard + auth + admin
+├── vapi_setup.py          # One-command Vapi provisioning
 ├── prompts/
 │   └── system_prompt.txt  # Alex's personality + scoring rubric
-├── requirements.txt       # Python dependencies
-├── .env.example           # Environment variable template
-└── .gitignore
+├── requirements.txt
+├── .env.example
+└── docs/plans/            # Architecture documentation
 ```
-
-## Prerequisites
-
-- **Python 3.9+**
-- **ngrok** — to expose your local server to the internet
-- **Vapi.ai account** — for the voice agent platform
-- **Resend account** — for sending nurture emails (optional)
 
 ## Setup
 
-### 1. Clone and install dependencies
+### 1. Install
 
 ```bash
-git clone https://github.com/withaxiom/voice-agent.git
-cd voice-agent/demos/voice-agent
-
+cd demos/voice-agent
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Get your API keys
-
-**Vapi.ai:**
-1. Sign up at https://dashboard.vapi.ai
-2. Go to **Dashboard > API Keys**
-3. Copy your API key
-4. Add your **ElevenLabs API key** in Dashboard > Settings > Integrations (required for the voice)
-
-**Resend (for nurture emails):**
-1. Sign up at https://resend.com
-2. Go to **Dashboard > API Keys**
-3. Copy your API key
-
-### 3. Configure environment
+### 2. Configure
 
 ```bash
 cp .env.example .env
@@ -95,183 +72,124 @@ cp .env.example .env
 
 Edit `.env` with your keys:
 
-```
-VAPI_API_KEY=your_vapi_api_key_here
-RESEND_API_KEY=your_resend_api_key_here
+```env
+VAPI_API_KEY=your_vapi_key          # dashboard.vapi.ai > API Keys
+RESEND_API_KEY=your_resend_key      # resend.com > API Keys
+SECRET_KEY=any_random_string        # Flask session secret
 ```
 
-### 4. Start the webhook server
+Add your **ElevenLabs API key** in the Vapi dashboard: **Settings > Integrations**.
+
+### 3. Start the server
 
 ```bash
-source .venv/bin/activate
 python server.py
 ```
 
-The server starts on **http://localhost:5002**. You should see:
+Server runs on `http://localhost:5002`.
 
-```
-============================================================
-  Westbrook & Associates — Voice Agent Webhook Server
-  Dashboard: http://localhost:5002
-  Webhook:   http://localhost:5002/webhook/tools
-============================================================
-```
-
-### 5. Start ngrok
-
-In a separate terminal:
+### 4. Start ngrok
 
 ```bash
 ngrok http 5002
 ```
 
-Copy the public URL (e.g. `https://abc123.ngrok-free.dev`). This is your webhook URL.
+Copy the `https://` URL.
 
-> **Note:** If this is your first time using ngrok, you'll need to sign up at https://dashboard.ngrok.com and run `ngrok config add-authtoken YOUR_TOKEN` first.
+> First time? Sign up at [ngrok.com](https://dashboard.ngrok.com) and run `ngrok config add-authtoken YOUR_TOKEN`.
 
-### 6. Run Vapi setup
-
-In a separate terminal (with the venv activated):
+### 5. Set up Vapi
 
 ```bash
-source .venv/bin/activate
 python vapi_setup.py setup
 ```
 
-When prompted, paste your ngrok URL. The script will:
-1. Create 4 tools (log_lead, check_availability, send_nurture_email, transfer_call)
-2. Create the assistant ("Alex") with Claude Sonnet, ElevenLabs voice, and Deepgram transcription
-3. Provision a phone number (830 area code)
+Paste your ngrok URL when prompted. This creates:
+- 4 tools: `log_lead`, `check_availability`, `send_nurture_email`, `transfer_call`
+- The assistant (Claude + ElevenLabs + Deepgram)
+- A phone number (830 area code)
 
-You'll see output like:
+### 6. Test
 
-```
-Creating tools...
-  Created tool 'log_lead': abc-123
-  Created tool 'check_availability': def-456
-  Created tool 'send_nurture_email': ghi-789
-  Created tool 'transfer_call': jkl-012
+Call the phone number. After the call, check `http://localhost:5002` for the logged lead.
 
-Creating assistant...
-  Created assistant: mno-345
+### 7. Create admin user (optional)
 
-Creating phone number...
-  Phone number: +18301234567
-
-============================================================
-  Setup complete!
-  Phone number: +18301234567
-============================================================
+```bash
+python server.py create-admin
 ```
 
-### 7. Test it
+Unlocks: user management, cost analysis dashboard, lead deletion.
 
-Call the phone number from your cell phone. Alex will answer and walk you through the qualification process.
+## Dashboard Features
 
-After the call, check the dashboard at **http://localhost:5002** to see the logged lead.
+- **Lead table** with color-coded scores (green/yellow/red)
+- **Live stats** — total, qualified, nurture, redirect counts
+- **Auto-refresh** every 10 seconds
+- **Search** by name, phone, or email
+- **Filter** by routing type or status
+- **Lead detail view** — full case summary, notes, status workflow
+- **Browser notifications** for new qualified leads
 
-## Dashboard
+### Roles
 
-The web dashboard at `http://localhost:5002` displays all leads in a table with:
-
-- **Time** — when the call happened
-- **Name** — caller's name
-- **Case Type** — type of legal matter
-- **Score** — qualification score (color-coded: green 7–10, yellow 4–6, red 1–3)
-- **Routing** — QUALIFIED / NURTURE / REDIRECT badge
-- **Phone** — caller's phone number
-- **Email** — email if captured
-- **Zip** — caller's zip code
-
-The dashboard auto-refreshes every 10 seconds. Summary stats are shown in the header.
+| Role | Can do |
+|------|--------|
+| **Admin** | Everything + manage users + delete leads + cost analysis |
+| **Attorney** | View all leads + add notes + change lead status |
+| **Staff** | View all leads + add notes |
 
 ## API
 
 ### `GET /api/leads`
 
-Returns all leads as JSON, ordered by most recent first.
-
 ```bash
 curl http://localhost:5002/api/leads
 ```
 
-```json
-[
-  {
-    "id": 1,
-    "caller_name": "Maria",
-    "case_type": "personal injury",
-    "case_summary": "Car accident last week...",
-    "score": 9,
-    "routing": "qualified",
-    "email": "maria@example.com",
-    "zip_code": "78852",
-    "phone": "+18301234567",
-    "call_id": "abc-123",
-    "created_at": "2026-03-04T11:00:00"
-  }
-]
-```
+Returns all leads as JSON, most recent first.
 
-## Managing Vapi Resources
+### `POST /webhook/tools`
+
+Vapi sends tool calls here (`log_lead`, `check_availability`, `send_nurture_email`, `transfer_call`).
+
+### `POST /webhook/vapi`
+
+End-of-call reports from Vapi (call duration tracking).
+
+## Vapi Management
 
 ```bash
-# View current config (assistant ID, phone number, tool IDs)
-python vapi_setup.py status
-
-# Delete all Vapi resources (tools, assistant, phone number)
-python vapi_setup.py teardown
+python vapi_setup.py status     # See what's deployed
+python vapi_setup.py teardown   # Delete everything
+python vapi_setup.py setup      # Re-deploy with new ngrok URL
 ```
 
-## Test Scenarios
+## Troubleshooting
 
-### Qualified Lead (Score 7–10)
-- Personal injury, car accident last week
-- First call, friend referral
-- Wants to act ASAP
-- Zip: 78852 (Eagle Pass, TX)
-- **Expected:** Consultation booked, green QUALIFIED badge
-
-### Nurture Lead (Score 4–6)
-- Considering divorce, separated 4 months
-- Spoke with one other attorney
-- Still figuring things out
-- Zip: 78840 (Del Rio, TX)
-- **Expected:** Email with resources sent, yellow NURTURE badge
-
-### Redirect (Score 1–3)
-- Landlord kept security deposit, 13 months ago
-- Two attorneys already declined
-- Not sure what to do
-- Zip: 75201 (Dallas, TX)
-- **Expected:** Referred to Legal Aid / small claims, red REDIRECT badge
+| Problem | Fix |
+|---------|-----|
+| No voice on call | Add ElevenLabs key in Vapi > Settings > Integrations |
+| No leads appearing | Both Flask + ngrok must be running. URLs must match. |
+| Emails not sending | Check `RESEND_API_KEY`. Free tier only sends to signup email. |
+| ngrok auth error | `ngrok config add-authtoken YOUR_TOKEN` |
+| 500 on tool calls | Check Flask logs. Vapi uses `parameters` key (server handles both). |
+| Restarted ngrok | Re-run `python vapi_setup.py setup` with new URL |
 
 ## Tech Stack
 
 | Component | Service |
 |-----------|---------|
-| Voice Agent Platform | [Vapi.ai](https://vapi.ai) |
+| Voice Platform | [Vapi.ai](https://vapi.ai) |
 | AI Model | Claude Sonnet (Anthropic) |
-| Voice Synthesis | ElevenLabs |
-| Speech-to-Text | Deepgram Nova 2 |
-| Webhook Server | Flask (Python) |
+| Voice | ElevenLabs |
+| Transcription | Deepgram Nova 2 |
+| Backend | Flask (Python) |
 | Email | Resend |
 | Database | SQLite |
+| Auth | Google OAuth + email/password |
 | Tunnel | ngrok |
 
-## Troubleshooting
+---
 
-### Server shows 500 errors on tool calls
-Check the server logs for the full payload. Vapi sends tool call parameters under the `parameters` key (not `arguments`). The server handles both formats.
-
-### ngrok requires authentication
-Run `ngrok config add-authtoken YOUR_TOKEN` with your token from https://dashboard.ngrok.com/get-started/your-authtoken.
-
-### No leads appearing on dashboard
-Make sure both the Flask server and ngrok are running before making a call. The ngrok URL must match what you provided during `vapi_setup.py setup`. If you restart ngrok (which gives a new URL), you'll need to re-run setup or update the server URL in the Vapi dashboard.
-
-### Nurture emails not sending
-Verify your `RESEND_API_KEY` is set in `.env`. With the free Resend plan, you can only send to the email address you signed up with (use a verified domain for production).
-
-### Call connects but Alex doesn't speak
-Ensure your ElevenLabs API key is configured in the Vapi dashboard under Settings > Integrations.
+Built by **[AXIOM Collective](https://withaxiom.co)** — AI voice agents for service businesses.
